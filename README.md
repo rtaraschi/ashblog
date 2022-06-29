@@ -1,11 +1,11 @@
 bashblog
 ========
 
-A single Bash script to create blogs. 
+A single ash script to create blogs. 
 
 I created it because I wanted a very, very simple way to post entries to a blog by using a public folder on my server, without any special requirements and dependencies. Works on GNU/Linux, OSX and BSD.
 
-*How simple? Just type `./bb.sh post` and start writing your blogpost.*
+*How simple? Just type `./ab.sh post` and start writing your blogpost.*
 
 [![asciinema](https://asciinema.org/a/4nr44km9ipow4s7u2w2eabeik.png)](https://asciinema.org/a/4nr44km9ipow4s7u2w2eabeik)
 
@@ -21,7 +21,7 @@ Usage
 
 Download the code and copy bb.sh into a public folder (for example, `$HOME/public_html/blog`) and run
 
-    ./bb.sh
+    ./ab.sh
 
 This will show the available commands. If the file is not executable, type `chmod +x bb.sh` and retry.
 
@@ -30,11 +30,11 @@ Read the Configuration section below for more information**
 
 To create your first post, just run:
 
-    ./bb.sh post
+    ./ab.sh post
     
 It will try to use Markdown, if installed. To force HTML:
 
-    ./bb.sh post -html
+    ./ab.sh post -html
     
 The script will handle the rest.
 
@@ -52,8 +52,8 @@ Features
 --------
 
 - Ultra simple usage: Just type a post with your favorite editor and the script does the rest. No templating.
-- No installation required. Download `bb.sh` and start blogging.
-- Zero dependencies. It runs just on base utils (`date`, `basename`, `grep`, `sed`, `head`, etc)
+- No installation required. Download `ab.sh` and start blogging.
+- Zero dependencies. It runs just on busybox base utils (`date`, `basename`, `grep`, `sed`, `head`, etc)
 - GNU/Linux, BSD and OSX compatible out of the box, no need for GNU `coreutils` on a Mac.
   It does some magic to autodetect which command switches it needs to run depending on your system.
 - All content is static. You only need shell access to a machine with a public web folder.
@@ -73,7 +73,7 @@ want to change the default titles, author names, etc, to match your own.
 
 There are two ways to configure the blog strings:
 
-- Edit `bb.sh` and modify the variables in the `global_variables()` function
+- Edit `ab.sh` and modify the variables in the `global_variables()` function
 - Create a `.config` file with your configuration values -- useful if you don't want to touch the script and be able to update it regularly with git
 
 The software will load the values in the script first, then overwrite them with the values in the `.config` file.

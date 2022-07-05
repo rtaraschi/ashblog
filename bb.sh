@@ -162,7 +162,7 @@ global_variables() {
     # Markdown location. Trying to autodetect by default.
     # The invocation must support the signature 'markdown_bin in.md > out.html'
     # and 'cat in.md | markdown_bin > out.html'
-    [ -f Markdown.pl ] && markdown_bin=./Markdown.pl || markdown_bin=$(command -v Markdown.pl 2>/dev/null || command -v markdown 2>/dev/null)
+    [ -f Markdown.pl ] && markdown_bin=./Markdown.pl || markdown_bin=$(command -v Markdown.pl 2>/dev/null)
 }
 
 # Check for the validity of some variables
@@ -177,10 +177,14 @@ global_variables_check() {
 }
 
 # print colored messages to STDERR on ANSI terminals
-redprint ()    { printf "\033[1;91m%s\033[0m\n" "$1" 1>&2; }
-greenprint ()  { printf "\033[0;32m%s\033[0m\n" "$1" 1>&2; }
-yellowprint () { printf "\033[0;33m%s\033[0m\n" "$1" 1>&2; }
-ghostprint ()  { printf "\033[0;30m%s\033[0m\n" "$1" 1>&2; }
+ghostprint()   { printf "\x1B[0;30m%s\x1B[0m\n" "$1" 1>&2; }
+redprint()     { printf "\x1B[0;31m%s\x1B[0m\n" "$1" 1>&2; }
+greenprint()   { printf "\x1B[0;32m%s\x1B[0m\n" "$1" 1>&2; }
+yellowprint()  { printf "\x1B[0;33m%s\x1B[0m\n" "$1" 1>&2; }
+blueprint()    { printf "\x1B[0;34m%s\x1B[0m\n" "$1" 1>&2; }
+magentaprint() { printf "\x1B[0;35m%s\x1B[0m\n" "$1" 1>&2; }
+cyanprint()    { printf "\x1B[0;36m%s\x1B[0m\n" "$1" 1>&2; }
+whiteprint()   { printf "\x1B[0;37m%s\x1B[0m\n" "$1" 1>&2; }
 
 # The $RANDOM variable is a special variable in bash or ksh. To get the same
 # information from dash, ash or POSIX sh, use this external command instead.
@@ -189,20 +193,21 @@ ghostprint ()  { printf "\033[0;30m%s\033[0m\n" "$1" 1>&2; }
 random() {
     awk 'BEGIN { srand(); print int(rand()*32768) }'
 }
-        
-# sorted by date, newest first
-get_html_file_list () {
-    find . -maxdepth 1 -type f -name "*\.html" -printf "%T+\t%p\n" | sort -r | cut -f2
+
+# sorted by date, newest first, one file per line
+# TODO: change maxdepth to 3 (or 4) for subdirs
+get_html_file_list() {
+    find . -maxdepth 1 -type f -name "*\.html" -printf "%T+\t%p\n" | sort -r | cut -f2-
 }
 
 # trim leading and trailing whitespace
-trim () {
+trim() {
     sed -e "s/^[ \t]\+//" -e "s/[ \t]\+$//"
 }
 
 # Test if the markdown script is working correctly. Change newlines to '|' for ash compatibility
 test_markdown() {
-    [ -n "$markdown_bin" ] &&
+    [ -n "$markdown_bin" ] || return 1 &&
 	md_html=$(printf "line 1\n\nline 2" | eval "$markdown_bin" | tr '\n' '|')
 	[ "$md_html" = "<p>line 1</p>||<p>line 2</p>|" ] ||
 	[ "$md_html" = "<p>line 1</p>|<p>line 2</p>|" ]
@@ -210,7 +215,7 @@ test_markdown() {
 
 
 # Parse a Markdown file into HTML and return the generated file
-markdown() {
+do_markdown() {
     out=${1%.md}.html
     while [ -f "$out" ]; do out=${out%.html}.$(random).html; done
     "$markdown_bin" "$1" > "$out"
@@ -319,10 +324,10 @@ edit() {
         filename="$1"
     else
         if [ "${1##*.}" = "md" ]; then
-            test_markdown || { echo "Markdown is not working, please edit HTML file directly."; exit; }
+            test_markdown || { printf "Markdown not working - edit HTML file directly\n"; exit 1; }
             # editing markdown file
             $EDITOR "$1"
-            TMPFILE=$(markdown "$1")
+            TMPFILE=$(do_markdown "$1")
             filename=${1%%.*}.html
         else
             # Create the content file
@@ -350,9 +355,9 @@ edit() {
     tags_after=$(tags_in_post "$filename")
     relevant_tags=$(echo "$tags_before $tags_after" | tr ',' ' ' | tr ' ' '\n' | sort -u | tr '\n' ' ')
     if [ -n "$relevant_tags" ]; then
-        echo "tags: --->$relevant_tags<---"
         relevant_posts="$(posts_with_tags "$relevant_tags") $filename"
-        echo "posts: --->$relevant_posts<---"
+        blueprint "edit(): relevant_tags: --->$relevant_tags<---"
+        blueprint "edit(): relevant_posts: --->$relevant_posts<---"
         rebuild_tags "$relevant_posts" "$relevant_tags"
     fi
 }
@@ -553,7 +558,7 @@ parse_file() {
 
                 # Check for duplicate file names
                 while [ -f "$filename" ]; do
-                    filename="${filename%.html}$(random).html"
+                    filename="${filename%.html}.$(random).html"
                 done
             fi
             content="$filename.tmp"
@@ -596,7 +601,7 @@ write_entry() {
         [ "$2" = "-html" ] && fmt="html"
         # Test if Markdown is working before re-posting a .md file
         if [ "$extension" = "md" ]; then
-            test_markdown || { echo "Markdown is not working, please edit HTML file directly."; exit; }
+            test_markdown || { echo "Markdown not working - edit HTML file directly."; exit 1; }
         fi
     else
         TMPFILE=".entry-$(random).$fmt"
@@ -623,7 +628,8 @@ EOF
         [ -n "$filename" ] && rm "$filename" # Delete the generated html file, if any
         $EDITOR "$TMPFILE"
         if [ "$fmt" = "md" ]; then
-            html_from_md=$(markdown "$TMPFILE")
+            test_markdown || { echo "Markdown not working - edit HTML file directly."; exit 1; }
+            html_from_md=$(do_markdown "$TMPFILE")
             parse_file "$html_from_md"
             rm "$html_from_md"
         else
@@ -661,13 +667,13 @@ EOF
     fi
     chmod 644 "$filename"
     echo "Posted $filename TODO write_entry()"
-    echo "00000"; ls tag_*
     relevant_tags=$(tags_in_post "$filename")
     if [ -n "$relevant_tags" ]; then
         relevant_posts="$(posts_with_tags "$relevant_tags") $filename"
+        yellowprint "write_entry(): relevant_tags: --->$relevant_tags<---"
+        yellowprint "write_entry(): relevant_posts: --->$relevant_posts<---"
         rebuild_tags "$relevant_posts" "$relevant_tags"
     fi
-    echo "11111"; ls tag_*
 }
 
 # Create an index page with all the posts
@@ -809,22 +815,26 @@ posts_with_tags() {
 # rebuild_tags "one_post.html another_article.html" "example-tag another-tag"
 # mind the quotes!
 rebuild_tags() {
-    echo "rebuild_tags(\$@)     $#===>$@<====="
-    if [ $# -lt 2 ]; then
+    if [ $# -eq 0 ]; then
         # will process all files and tags
         files=$(get_html_file_list)
         redprint "$files"
         all_tags="yes"
-    else        # TODO ash: fix this part to remove 'ls'
+    elif [ $# -eq 2 ]; then        # TODO ash: fix this part to remove 'ls'
         # will process only given files and tags
-	echo "rebuild_tags(\$1)     =====>$1<====="
-	echo "rebuild_tags(\$2)     =====>$2<====="
-        files=$(printf "%s\n" $1 | sort -u)
-	echo "rebuild_tags(files 1) =====>$files<====="
-        files=$(ls -t "$files")
-	echo "rebuild_tags(files 2) =====>$files<====="
+        cyanprint "rebuild_tags(\$1): posts:     =====>$1<====="
+        cyanprint "rebuild_tags(\$2): tags:    =====>$2<====="
+        #files=$(printf "%s\n" $1 | sort -u)
+        #redprint "rebuild_tags(files 1) =====>$files<====="
+        #files=$(ls -t "$files")
+        files=$(stat -c "%Y %n" $1 | sort -nr | cut -d' ' -f2-)
+        redprint "rebuild_tags(files 2) =====>$files<====="
         tags="$2"
+    else
+        printf "PANIC: rebuild_tags() expected 0 or 2 parameters, but got %d\n" $#
+        exit 1
     fi
+
     echo -n "Rebuilding tag pages "
     n=0
     if [ -n "$all_tags" ]; then
@@ -1195,7 +1205,7 @@ do_main() {
     fi
 
     # Keep first backup of this day containing yesterday's version of the blog
-    [ ! -f ".yesterday.tar.gz" -o "$(date -r '.yesterday.tar.gz' +'%d')" != "$(date +'%d')" ] &&
+    [ -f ".yesterday.tar.gz" ] && [ "$(date -r '.yesterday.tar.gz' +'%d')" != "$(date +'%d')" ] &&
         cp ".backup.tar.gz" ".yesterday.tar.gz" > /dev/null 2>&1
 
     [ "$1" = "reset" ] &&
@@ -1215,6 +1225,7 @@ do_main() {
             edit "$2" keep
         fi
     fi
+    redprint "DEBUG ABORT"; exit 1
     rebuild_index
     all_posts
     all_tags

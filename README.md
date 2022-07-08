@@ -1,5 +1,5 @@
-bashblog
-========
+ashblog - WORK IN PROGRESS - not functional yet
+===============================================
 
 A single ash script to create blogs. 
 

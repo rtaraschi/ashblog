@@ -793,16 +793,34 @@ rebuild_index() {
 # Accepts filename as first argument
 # Prints one line with space-separated tags to stdout
 tags_in_post() {
-    sed -n "/^<p>$template_tags_line_header/{s/^<p>$template_tags_line_header//;s/<[^>]*>//g;s/[ ,]\+/ /g;p;}" "$1" | trim
+    sed -n "/^<p>$template_tags_line_header/{s/^<p>$template_tags_line_header//;s/<[^>]*>//g;s/[ ,]\+/\n/g;p;}" "$1"
 }
 
 # Finds all posts referenced in a number of tags.
 # Arguments are tags
 # Prints one line with space-separated tags to stdout
 posts_with_tags() {
+    #(($# < 1)) && return
     [ $# -lt 1 ] && return
-    set -- $(echo "$@" | tr ' ' '\n' | sed -e "s/^/$prefix_tags/" -e "s/$/.html/" | tr '\n' ' ' | trim)
-    sed -n '/^<h3><a class="ablack" href="[^"]*">/{s/.*href="\([^"]*\)">.*/\1/;p;}' "$@" | sort | uniq | tr '\n' ' ' | trim  # TODO 2> /dev/null
+    #set -- "${@/#/$prefix_tags}"
+    #set -- "${@/%/.html}"
+    redprint "$# >>>$@<<<"
+    for i; do yellowprint ">>>$i<<<"; done
+    #sed -n '/^<h3><a class="ablack" href="[^"]*">/{s/.*href="\([^"]*\)">.*/\1/;p;}' "$@" ### 2> /dev/null
+
+    echo "1. POSTS_WITH_TAGS(NF=$#)" 1>&2
+    for i; do echo "    >>>$i<<<" 1>&2; done
+#   set -- $(echo "$@" | tr ' ' '\n' | sed -e "s/^/$prefix_tags/" -e "s/$/.html/" | tr '\n' ' ' | trim)
+#   echo $# 1>&2
+#   for i; do echo "    >>>$i<<<" 1>&2; done
+#   sed -n '/^<h3><a class="ablack" href="[^"]*">/{s/.*href="\([^"]*\)">.*/\1/;p;}' "$@" | sort | uniq | tr '\n' ' ' | trim  # TODO 2> /dev/null
+    for tag; do
+        set == $@ $(echo "$tag" | sed -e "s/^/$prefix_tags/" -e "s/$/.html/")
+        shift 2    # don't ask me why this is 2 instead of 1, but it works
+    done
+    echo "2. POSTS_WITH_TAGS(NF=$#)" 1>&2
+    for i; do echo "    >>>$i<<<" 1>&2; done
+
 }
 
 # Rebuilds tag_*.html files
